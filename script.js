@@ -71,8 +71,8 @@ function init() {
         specularMap: earthSpecularMap,
         normalMap: earthNormalMap,
         emissiveMap: earthNightMap,
-        specular: new THREE.Color(0x333333),
-        shininess: 20, // Ajuster ces valeurs
+        specular: new THREE.Color(0x222222),
+        shininess: 5, // Ajuster ces valeurs
         emissive: new THREE.Color(0xffffaa),
         emissiveIntensity: 1.5
     });    
@@ -88,9 +88,10 @@ function init() {
     const cloudMaterial = new THREE.MeshPhongMaterial({
         map: new THREE.TextureLoader().load('Earth_Cloud.jpg'),
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.6,
         emissive: new THREE.Color(0xffffff), // Ajouter une couleur émissive blanche
-        emissiveIntensity: 0.0001 // Ajuster l'intensité selon vos besoins
+        emissiveIntensity: 0.0001, // Ajuster l'intensité selon vos besoins
+        alpha: true
     });
     cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
 
