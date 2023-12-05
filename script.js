@@ -86,9 +86,9 @@ function init() {
 
     const cloudGeometry = new THREE.SphereGeometry(1.01, 32, 32); // Un peu plus grande que la Terre
     const cloudMaterial = new THREE.MeshPhongMaterial({
-        map: new THREE.TextureLoader().load('Earth_Cloud.jpg'),
+        map: new THREE.TextureLoader().load('Earth_Cloud.png'),
         transparent: true,
-        opacity: 0.6,
+        opacity: 1.0,
         emissive: new THREE.Color(0xffffff), // Ajouter une couleur émissive blanche
         emissiveIntensity: 0.0001, // Ajuster l'intensité selon vos besoins
         alpha: true
