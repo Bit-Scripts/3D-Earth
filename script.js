@@ -1,4 +1,4 @@
-let scene, camera, renderer, earthMesh, light, particleSystem, cloudMesh;
+let scene, camera, renderer, earthMesh, light, particleSystem, cloudMesh, earthMaterial;
 let isPaused = false;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -66,7 +66,7 @@ function init() {
     );
     const earthNightMap = new THREE.TextureLoader().load('Earth_Night.jpg');
 
-    const earthMaterial = new THREE.MeshPhongMaterial({
+    earthMaterial = new THREE.MeshPhongMaterial({
         map: earthDiffuseMap,
         specularMap: earthSpecularMap,
         normalMap: earthNormalMap,
@@ -75,7 +75,7 @@ function init() {
         shininess: 5, // Ajuster ces valeurs
         emissive: new THREE.Color(0xffffaa),
         emissiveIntensity: 1.5
-    });    
+    });   
     
     // Création de la mesh de la Terre
     earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
@@ -107,8 +107,9 @@ function init() {
     light.position.set(10, 5, 5);
     scene.add(light);
 
-    // const ambientLight = new THREE.AmbientLight(0xffffff, 0.02); // Ajustez l'intensité selon besoin
-    // scene.add(ambientLight);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.002); // Ajustez l'intensité selon besoin
+    scene.add(ambientLight);
+
 
     window.addEventListener('resize', onWindowResize, false);
 
@@ -132,8 +133,35 @@ function checkIntersection() {
     }
 }
 
+function calculateEmissiveIntensity(angleRadians) {
+    // Convertir l'angle en degrés pour simplifier la compréhension
+    const angleDegrees = angleRadians * (180 / Math.PI);
+
+    // L'intensité émissive basée sur l'angle
+    /*let emissiveIntensity;
+
+    if (angleDegrees < 90) {
+        // Jour : diminuer l'intensité
+        emissiveIntensity = 0.2 * (1 - angleDegrees / 90);
+    } else {
+        // Nuit : augmenter l'intensité, mais pas trop
+        // Utiliser une fonction logarithmique ou exponentielle pour une augmentation douce
+        emissiveIntensity = 0.2 + Math.log10((angleDegrees - 90) + 1) / 2;
+    }*/
+
+    // Assurer que l'intensité reste dans une plage raisonnable
+    return 0.2; Math.min(Math.max(emissiveIntensity, 0), 1);
+}
+
 function animate() {
     requestAnimationFrame(animate);
+
+    // Exemple avec le pôle Nord (0, 1, 0 en coordonnées cartésiennes)
+    const northPoleDirection = new THREE.Vector3(0, 1, 0);
+    const lightDirection = light.position.clone().normalize();
+
+    const angleRadians = Math.acos(lightDirection.dot(northPoleDirection));
+    earthMaterial.emissiveIntensity = calculateEmissiveIntensity(angleRadians);
 
     if (!isPaused) {
         earthMesh.rotation.y += 0.001; // Rotation de la Terre
