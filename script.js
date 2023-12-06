@@ -2,6 +2,8 @@ let scene, camera, renderer, earthMesh, light, particleSystem, cloudMesh, earthM
 let isPaused = false;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+const textureLoader = new THREE.TextureLoader();
+const particleTexture = textureLoader.load('circle-particle.png'); // Remplacez par le chemin de votre texture
 
 function addParticles() {
     const particlesGeometry = new THREE.BufferGeometry();
@@ -9,17 +11,16 @@ function addParticles() {
 
     const posArray = new Float32Array(particlesCnt * 3);
     for (let i = 0; i < particlesCnt * 3; i++) {
-        // Random positions
         posArray[i] = (Math.random() - 0.5) * 10;
     }
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
 
     const particlesMaterial = new THREE.PointsMaterial({
         size: 0.005,
-        color: 0xffffff,
-        depthTest: true // Assurez-vous que ceci est activé
+        map: particleTexture, // Utiliser la texture circulaire
+        transparent: true, // Important pour les textures avec transparence
+        depthTest: true
     });
-    
 
     particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particleSystem);
