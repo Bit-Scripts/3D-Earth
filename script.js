@@ -6,6 +6,24 @@ const mouse = new THREE.Vector2();
 const textureLoader = new THREE.TextureLoader();
 const particleTexture = textureLoader.load('circle-particle.png'); // Remplacez par le chemin de votre texture
 
+// let fleet = []; // Array to store the fleet of Star Destroyers
+// const loader = new THREE.GLTFLoader(); // Loader for GLTF files
+
+// loader.load('destroyer-decimate025.gltf', function(gltf) {
+//     const starDestroyer = gltf.scene;
+//         starDestroyer.scale.set(.001, .001, .001); // Essayez une échelle plus grande
+
+//         const fleetSize = 10; 
+//         for (let i = 0; i < fleetSize; i++) {
+//             const clone = starDestroyer.clone(); 
+//             clone.position.set(0, 0, -i * 200); 
+//             fleet.push(clone); 
+//             scene.add(clone); 
+//         }
+//     }, undefined, function(error) {
+//     console.error('An error happened while loading the model:', error);
+//   });
+
 function addParticles() {
     const particlesGeometry = new THREE.BufferGeometry();
     const particlesCnt = 5000; // Adjust as needed
@@ -107,7 +125,7 @@ function init() {
     const moonGeometry = new THREE.SphereGeometry(0.27, 32, 32); // Taille de la Lune relative à la Terre
 
     // Définition du matériau de la Lune
-    const distanceTerreLune = 500000000000; // Distance Terre-Lune en unités, à ajuster selon vos besoins
+    const distanceTerreLune = 150; // Distance Terre-Lune en unités, à ajuster selon vos besoins
     const moonTexture = textureLoader.load('Moon.jpg');
     const moonNormalMap = textureLoader.load('Moon_Normal.jpg');
 
