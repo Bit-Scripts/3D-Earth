@@ -1,28 +1,26 @@
 let scene, camera, renderer, earthMesh, light, particleSystem, cloudMesh, earthMaterial;
 let isPaused = false;
 let moonMesh;
+let isHyperSpace = false; // Flag pour contrôler l'activation de l'hyperespace
+let hyperSpeed = 0.05; // Vitesse normale initiale
+const maxHyperSpeed = 2; // Vitesse maximale en hyperespace
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const textureLoader = new THREE.TextureLoader();
 const particleTexture = textureLoader.load('circle-particle.png'); // Remplacez par le chemin de votre texture
 
-// let fleet = []; // Array to store the fleet of Star Destroyers
-// const loader = new THREE.GLTFLoader(); // Loader for GLTF files
+let fleet = []; // Array to store the fleet of Star Destroyers
+let hyperSpaceParticles; // Pour stocker les particules de l'hyperespace
+const loader = new THREE.GLTFLoader(); // Loader for GLTF files
 
-// loader.load('destroyer-decimate025.gltf', function(gltf) {
-//     const starDestroyer = gltf.scene;
-//         starDestroyer.scale.set(.001, .001, .001); // Essayez une échelle plus grande
-
-//         const fleetSize = 10; 
-//         for (let i = 0; i < fleetSize; i++) {
-//             const clone = starDestroyer.clone(); 
-//             clone.position.set(0, 0, -i * 200); 
-//             fleet.push(clone); 
-//             scene.add(clone); 
-//         }
-//     }, undefined, function(error) {
-//     console.error('An error happened while loading the model:', error);
-//   });
+// Chargement du modèle et initialisation de la flotte
+loader.load('destroyer-decimate025.gltf', function(gltf) {
+    const starDestroyer = gltf.scene;
+    starDestroyer.scale.set(0.02, 0.02, 0.02);
+    initFleet(starDestroyer); // Initialiser la flotte après le chargement du modèle
+}, undefined, function(error) {
+    console.error('An error occurred while loading the model:', error);
+});
 
 function addParticles() {
     const particlesGeometry = new THREE.BufferGeometry();
@@ -49,7 +47,8 @@ function init() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-    camera.position.z = 3.5;
+    camera.position.set(0, 0, 5); // Position de la caméra en hauteur pour capturer l'effet d'apparition
+    camera.lookAt(new THREE.Vector3(0, 0, 0)); // Fixer la caméra sur le centre de la scène
 
     renderer = new THREE.WebGLRenderer({ alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -158,6 +157,14 @@ function init() {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.002); // Ajustez l'intensité selon besoin
     scene.add(ambientLight);
 
+    scene.fog = new THREE.Fog(0x000000, 10, 100); // Crée un effet de brouillard pour ajouter de la profondeur
+
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight1.position.set(10, 5, 5).normalize();
+    scene.add(directionalLight1);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight2.position.set(10, -5, -5).normalize();
+    scene.add(directionalLight2);
 
     window.addEventListener('resize', onWindowResize, false);
 
@@ -201,6 +208,73 @@ function calculateEmissiveIntensity(angleRadians) {
     return 0.2; Math.min(Math.max(emissiveIntensity, 0), 1);
 }
 
+function initFleet(starDestroyer) {
+    const fleetSize = 3; // Nombre de vaisseaux par groupe
+    const initialHeight = 2.0; // Hauteur des vaisseaux
+
+    for (let i = 0; i < fleetSize; i++) {
+        const clone = starDestroyer.clone();
+        clone.position.set(-10, initialHeight, i * -1); // Position initiale avec hauteur ajustée
+        fleet.push(clone);
+        scene.add(clone);
+    }
+}
+
+function animateFleet() {
+    const heightOffset = 2.0; // Hauteur de base
+
+    fleet.forEach((ship, index) => {
+        if (isHyperSpace) {
+            ship.position.x += hyperSpeed;
+            hyperSpeed *= 1.05; // Accélération exponentielle
+
+            if (ship.position.x > 10 || hyperSpeed > maxHyperSpeed) {
+                ship.position.x = -10; // Réinitialiser la position après l'hyperespace
+                hyperSpeed = 0.05; // Réinitialiser la vitesse
+                isHyperSpace = false; // Désactiver l'hyperespace
+            }
+        } else {
+            ship.position.x += 0.05; // Déplacement de gauche à droite
+            if (ship.position.x > 0 && !isHyperSpace) {
+                isHyperSpace = true;
+            }
+        }
+
+        // Positionnez les vaisseaux en formation triangulaire plus proche
+        if (index === 0) {
+            ship.position.set(ship.position.x, heightOffset + 1, 0); // Vaisseau du haut
+        } else if (index === 1) {
+            ship.position.set(ship.position.x, heightOffset, -0.5); // Vaisseau en bas à gauche
+        } else if (index === 2) {
+            ship.position.set(ship.position.x, heightOffset, 0.5); // Vaisseau en bas à droite
+        }
+    });
+}
+
+function createHyperSpaceEffect() {
+    const hyperSpaceGeometry = new THREE.BufferGeometry();
+    const particleCount = 1000;
+    const positions = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount * 3; i += 3) {
+        positions[i] = (Math.random() - 0.5) * 20; // Position X
+        positions[i + 1] = (Math.random() - 0.5) * 20; // Position Y
+        positions[i + 2] = (Math.random() - 0.5) * 50; // Position Z
+    }
+
+    hyperSpaceGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const hyperSpaceMaterial = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.05,
+        transparent: true,
+        opacity: 0.0,
+    });
+
+    hyperSpaceParticles = new THREE.Points(hyperSpaceGeometry, hyperSpaceMaterial);
+    scene.add(hyperSpaceParticles);
+}
+
 function animate() {
     requestAnimationFrame(animate);
 
@@ -212,9 +286,19 @@ function animate() {
     earthMaterial.emissiveIntensity = calculateEmissiveIntensity(angleRadians);
 
     if (!isPaused) {
+        animateFleet();
+
+        // Animation des particules d'hyperespace (allongement des traînées de lumière)
+        if (isHyperSpace) {
+            const positions = hyperSpaceParticles.geometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i + 2] += 0.5; // Allonger les traînées sur l'axe Z
+            }
+            hyperSpaceParticles.geometry.attributes.position.needsUpdate = true;
+        }
+
         earthMesh.rotation.y += 0.001; // Rotation de la Terre
         cloudMesh.rotation.y += 0.0005; // Rotation des nuages
-
         // Rotation de la Lune autour de la Terre
         moonMesh.position.x = Math.cos(Date.now() * 0.001) * 2;
         moonMesh.position.z = Math.sin(Date.now() * 0.001) * 2;
@@ -243,3 +327,4 @@ function onWindowResize() {
 }
 
 init();
+createHyperSpaceEffect(); // Créez l'effet d'hyperespace après la scène
