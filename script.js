@@ -1,5 +1,6 @@
 let scene, camera, renderer, earthMesh, light, particleSystem, cloudMesh, earthMaterial;
 let isPaused = false;
+let moonMesh;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const textureLoader = new THREE.TextureLoader();
@@ -28,8 +29,9 @@ function addParticles() {
 
 function init() {
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 5;
+    camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+    camera.position.z = 3.5;
 
     renderer = new THREE.WebGLRenderer({ alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -101,6 +103,33 @@ function init() {
 
     scene.add(cloudMesh);
 
+    // Définition de la géométrie de la Lune
+    const moonGeometry = new THREE.SphereGeometry(0.27, 32, 32); // Taille de la Lune relative à la Terre
+
+    // Définition du matériau de la Lune
+    const distanceTerreLune = 500000000000; // Distance Terre-Lune en unités, à ajuster selon vos besoins
+    const moonTexture = textureLoader.load('Moon.jpg');
+    const moonNormalMap = textureLoader.load('Moon_Normal.jpg');
+
+    const moonMaterial = new THREE.MeshPhongMaterial({
+        map: moonTexture,
+        normalMap: moonNormalMap,  // Appliquez la carte normale ici
+        specular: new THREE.Color(0x000000), // Couleur spéculaire noire (aucune réflexion)
+        shininess: 0 // Pas de brillance
+    });
+    
+    moonMaterial.normalScale = new THREE.Vector2(1, 1); // Ajustez les valeurs pour changer l'intensité du relief
+
+    // Création de la mesh de la Lune
+    moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+
+    // Positionner la Lune à une certaine distance de la Terre
+    moonMesh.position.x = Math.cos(Date.now() * 0.001) * distanceTerreLune;
+    moonMesh.position.z = Math.sin(Date.now() * 0.001) * distanceTerreLune;
+
+    // Ajoutez la Lune à la scène
+    scene.add(moonMesh);
+
     // Ensuite, ajoutez les particules
     addParticles();
 
@@ -168,10 +197,14 @@ function animate() {
         earthMesh.rotation.y += 0.001; // Rotation de la Terre
         cloudMesh.rotation.y += 0.0005; // Rotation des nuages
 
+        // Rotation de la Lune autour de la Terre
+        moonMesh.position.x = Math.cos(Date.now() * 0.001) * 2;
+        moonMesh.position.z = Math.sin(Date.now() * 0.001) * 2;
+
         // Mise à jour des positions des particules
         let positions = particleSystem.geometry.attributes.position.array;
         for (let i = 0; i < positions.length; i += 3) {
-            positions[i] += 0.001; // Déplacement sur l'axe X
+            positions[i] += 0.0001; // Déplacement sur l'axe X
 
             // Réinitialisez la position de la particule si elle dépasse une certaine limite (par exemple, 5)
             if (positions[i] > 5) {
