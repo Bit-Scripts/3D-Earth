@@ -20,41 +20,56 @@ let plasmaRays = []; // Tableau pour stocker les rayons plasma
 
 // Fonction pour créer une boule de feu à l'impact
 function createFireball(globalPosition, direction) {
+    console.log("Boule de feu créée!");
+
     // Convertir la position globale de l'impact en coordonnées locales par rapport au Razor Crest
     const localPosition = razorCrest.worldToLocal(globalPosition.clone());
 
-    // Charger la texture "fire.jpg"
+    // Charger la texture "fire.jpg" et la bump map "fire_bump.jpg"
     const textureLoader = new THREE.TextureLoader();
-    const fireTexture = textureLoader.load('fire.jpg'); // Remplacez 'path/to/fire.jpg' par le chemin correct de l'image
+    const fireTexture = textureLoader.load('fire.jpg'); // Texture de la boule de feu
+    const normalTexture = textureLoader.load('fire_normal.png'); // Normal map associée à fire.jpg
 
-    // Créer un matériau avec la texture chargée
-    const fireballMaterial = new THREE.MeshBasicMaterial({
-        map: fireTexture,    // Appliquer la texture
-        transparent: true,   // Permettre la transparence
-        opacity: 0.8         // Opacité initiale
+    // Créer un matériau avec la texture et la normal map
+    const fireballMaterial = new THREE.MeshPhongMaterial({
+        map: fireTexture,        // Texture de la boule de feu
+        normalMap: normalTexture, // Normal map pour simuler le relief détaillé
+        normalScale: new THREE.Vector2(0.5, 0.5), // Ajuster l'intensité du relief
+        transparent: true,
+        opacity: 0.8
     });
 
     // Créer la boule de feu
     const fireball = new THREE.Mesh(
         new THREE.SphereGeometry(5, 32, 32),  // Géométrie de la boule de feu
-        fireballMaterial                      // Matériau avec la texture
+        fireballMaterial                      // Matériau avec texture et bump map
     );
 
     fireball.position.copy(localPosition);
 
+    // Appliquer une rotation aléatoire initiale sur les axes x, y et z
+    fireball.rotation.x = Math.random() * 2 * Math.PI;
+    fireball.rotation.y = Math.random() * 2 * Math.PI;
+    fireball.rotation.z = Math.random() * 2 * Math.PI;
+
     // Ajouter l'explosion comme enfant du Razor Crest pour qu'elle suive ses mouvements
     razorCrest.add(fireball);
 
-    // Animer la boule de feu pour qu'elle se dissipe progressivement
+    // Animer la boule de feu pour qu'elle se dissipe progressivement et tourne
     let fireballLife = 1.0; // Durée de vie initiale
     const fireballInterval = setInterval(() => {
         fireballLife -= 0.05;  // Réduction de la durée de vie
         fireball.scale.set(fireballLife, fireballLife, fireballLife);  // Réduire progressivement la taille
         fireball.material.opacity = fireballLife;  // Réduire progressivement l'opacité
 
+        // Faire tourner la boule de feu autour de ses propres axes de manière aléatoire
+        fireball.rotation.x += 0.1 * Math.random(); // Rotation sur l'axe X
+        fireball.rotation.y += 0.1 * Math.random(); // Rotation sur l'axe Y
+        fireball.rotation.z += 0.1 * Math.random(); // Rotation sur l'axe Z
+
         if (fireballLife <= 0) {
             razorCrest.remove(fireball); // Retirer la boule de feu du Razor Crest
-            clearInterval(fireballInterval); // Arrêter l'intervalle
+            clearInterval(fireballInterval); // Arrêter l'intervalle une fois la boule de feu disparue
         }
     }, 50);  // Intervalle pour une animation fluide
 }
