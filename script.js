@@ -18,6 +18,73 @@ const loader = new THREE.GLTFLoader(); // Loader for GLTF files
 
 let plasmaRays = []; // Tableau pour stocker les rayons plasma
 
+// Fonction pour créer une boule de feu à l'impact
+function createFireball(globalPosition, direction) {
+    // Convertir la position globale de l'impact en coordonnées locales par rapport au Razor Crest
+    const localPosition = razorCrest.worldToLocal(globalPosition.clone());
+
+    // Charger la texture "fire.jpg"
+    const textureLoader = new THREE.TextureLoader();
+    const fireTexture = textureLoader.load('fire.jpg'); // Remplacez 'path/to/fire.jpg' par le chemin correct de l'image
+
+    // Créer un matériau avec la texture chargée
+    const fireballMaterial = new THREE.MeshBasicMaterial({
+        map: fireTexture,    // Appliquer la texture
+        transparent: true,   // Permettre la transparence
+        opacity: 0.8         // Opacité initiale
+    });
+
+    // Créer la boule de feu
+    const fireball = new THREE.Mesh(
+        new THREE.SphereGeometry(5, 32, 32),  // Géométrie de la boule de feu
+        fireballMaterial                      // Matériau avec la texture
+    );
+
+    fireball.position.copy(localPosition);
+
+    // Ajouter l'explosion comme enfant du Razor Crest pour qu'elle suive ses mouvements
+    razorCrest.add(fireball);
+
+    // Animer la boule de feu pour qu'elle se dissipe progressivement
+    let fireballLife = 1.0; // Durée de vie initiale
+    const fireballInterval = setInterval(() => {
+        fireballLife -= 0.05;  // Réduction de la durée de vie
+        fireball.scale.set(fireballLife, fireballLife, fireballLife);  // Réduire progressivement la taille
+        fireball.material.opacity = fireballLife;  // Réduire progressivement l'opacité
+
+        if (fireballLife <= 0) {
+            razorCrest.remove(fireball); // Retirer la boule de feu du Razor Crest
+            clearInterval(fireballInterval); // Arrêter l'intervalle
+        }
+    }, 50);  // Intervalle pour une animation fluide
+}
+
+// Fonction pour animer les particules de débris
+function animateDebrisParticle(debris) {
+    const debrisInterval = setInterval(() => {
+        debris.position.add(debris.userData.direction.clone().multiplyScalar(0.05)); // Mouvement dans la direction
+        debris.userData.life -= 0.1; // Diminuer la durée de vie
+
+        // Faire diminuer l'opacité et la taille des débris
+        debris.scale.multiplyScalar(0.95);
+        debris.material.opacity *= 0.95;
+
+        if (debris.userData.life <= 0) {
+            scene.remove(debris); // Supprimer les débris lorsqu'ils disparaissent
+            clearInterval(debrisInterval);
+        }
+    }, 100);
+}
+
+// Fonction de gestion des impacts
+function handlePlasmaImpact(ray) {
+    // Créer une boule de feu à l'endroit de l'impact
+    createFireball(ray.position.clone(), ray.userData.direction);
+
+    // Retirer le rayon de la scène après l'impact
+    scene.remove(ray);
+}
+
 // Fonction pour créer un rayon plasma
 function createPlasmaRay(position, direction) {
     const plasmaGeometry = new THREE.CylinderGeometry(0.02, 0.02, 1, 32); // Forme du rayon
@@ -33,11 +100,25 @@ function createPlasmaRay(position, direction) {
     plasmaRays.push(plasmaRay); // Ajouter à la liste des tirs
 }
 
-// Fonction pour tirer des rayons plasma
+// Fonction pour tirer des rayons plasma avec meilleure précision
 function firePlasmaRay(ship) {
-    const rayDirection = new THREE.Vector3().subVectors(razorCrest.position, ship.position).normalize();
+    if (!razorCrest) return; // Assurez-vous que le Razor Crest est chargé
+
+    // Calculer la direction précise en prenant en compte la position actuelle du Razor Crest
+    const targetPosition = razorCrest.position.clone();
+    
+    // Ajouter un léger décalage aléatoire pour éviter des tirs toujours parfaits
+    targetPosition.x += (Math.random() - 0.5) * 0.2; // Décalage horizontal aléatoire
+    targetPosition.y += (Math.random() - 0.5) * 0.2; // Décalage vertical aléatoire
+    
+    // Calculer la direction du tir
+    const rayDirection = new THREE.Vector3().subVectors(targetPosition, ship.position).normalize();
+    
+    // Position initiale du tir, depuis le destroyer
     const initialPosition = ship.position.clone();
-    createPlasmaRay(initialPosition, rayDirection); // Crée un nouveau rayon
+    
+    // Créer le rayon plasma avec la direction ajustée
+    createPlasmaRay(initialPosition, rayDirection);
 }
 
 // Appeler cette fonction pour tirer des rayons périodiquement depuis les destroyers
@@ -52,14 +133,14 @@ function firePlasmaRaysFromFleet() {
 // Appeler cette fonction pour animer les rayons plasma
 function animatePlasmaRays() {
     plasmaRays.forEach((ray, index) => {
-        // Déplacer le rayon dans la direction de son objectif
-        ray.position.add(ray.userData.direction.clone().multiplyScalar(0.9)); // Ajuster la vitesse
+        // Déplacer le rayon vers sa cible
+        ray.position.add(ray.userData.direction.clone().multiplyScalar(0.9));
 
-        // Si le rayon est trop loin ou touche le Razor Crest, le supprimer
+        // Vérifier si le rayon touche le Razor Crest
         if (ray.position.distanceTo(razorCrest.position) < 0.5) {
-            scene.remove(ray); // Supprimer le rayon de la scène
+            handlePlasmaImpact(ray); // Gérer l'impact du tir
             plasmaRays.splice(index, 1); // Retirer de la liste
-        } else if (ray.position.distanceTo(camera.position) > 100) {
+        } else if (ray.position.distanceTo(camera.position) > 50) {
             scene.remove(ray); // Supprimer si le rayon est trop loin
             plasmaRays.splice(index, 1);
         }
