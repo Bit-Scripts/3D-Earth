@@ -106,11 +106,23 @@ function createPlasmaRay(position, direction) {
     const plasmaMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Couleur verte
     const plasmaRay = new THREE.Mesh(plasmaGeometry, plasmaMaterial);
 
-    plasmaRay.position.copy(position); // Position initiale du tir
-    plasmaRay.lookAt(position.clone().add(direction)); // Orienter le cylindre vers la direction du tir
-    plasmaRay.rotation.z = Math.PI / 2;
+    // Position initiale du tir
+    plasmaRay.position.copy(position);
 
-    plasmaRay.userData.direction = direction; // Stocker la direction du tir
+    // Calculer la direction du tir
+    const targetDirection = direction.clone().normalize();
+
+    // Calculer l'orientation correcte du cylindre pour qu'il suive la direction du tir
+    const up = new THREE.Vector3(0, 1, 0); // Axe vertical de référence (Y)
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(up, targetDirection); // Calculer la rotation
+
+    // Appliquer la rotation au plasma
+    plasmaRay.setRotationFromQuaternion(quaternion);
+
+    // Stocker la direction du tir pour le mouvement ultérieur
+    plasmaRay.userData.direction = targetDirection;
+
+    // Ajouter le plasma à la scène
     scene.add(plasmaRay);
     plasmaRays.push(plasmaRay); // Ajouter à la liste des tirs
 }
@@ -138,9 +150,14 @@ function firePlasmaRay(ship) {
 
 // Appeler cette fonction pour tirer des rayons périodiquement depuis les destroyers
 function firePlasmaRaysFromFleet() {
-    fleet.forEach((ship) => {
+    fleet.forEach((ship, index) => {
         if (!isHyperSpace) { // Ne pas tirer en hyperespace
-            firePlasmaRay(ship);
+            const delay = Math.random() * 500 + 500; // Délai aléatoire entre 500ms et 1000ms
+
+            // Utilisation de setTimeout pour introduire un délai
+            setTimeout(() => {
+                firePlasmaRay(ship);
+            }, delay * index); // Délai croissant en fonction de l'index pour éviter des tirs simultanés
         }
     });
 }
@@ -258,11 +275,9 @@ function init() {
         specularMap: earthSpecularMap,
         normalMap: earthNormalMap,
         emissiveMap: earthNightMap,
-        specular: new THREE.Color(0x222222),
-        shininess: 5, // Ajuster ces valeurs
         emissive: new THREE.Color(0xffffaa),
-        emissiveIntensity: 1.5
-    });   
+        emissiveIntensity: 5 // Réduire l'intensité de base de l'émissive
+    });
     
     // Création de la mesh de la Terre
     earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
@@ -281,6 +296,7 @@ function init() {
         alpha: true
     });
     cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+
 
     // Ajoutez d'abord la Terre à la scène
     scene.add(earthMesh);
@@ -321,17 +337,11 @@ function init() {
     light.position.set(10, 5, 5);
     scene.add(light);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.002); // Ajustez l'intensité selon besoin
-    scene.add(ambientLight);
-
     scene.fog = new THREE.Fog(0x000000, 10, 100); // Crée un effet de brouillard pour ajouter de la profondeur
 
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight1.position.set(10, 5, 5).normalize();
-    scene.add(directionalLight1);
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight2.position.set(10, -5, -5).normalize();
-    scene.add(directionalLight2);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(10, -5, -5).normalize();
+    scene.add(directionalLight);
 
     window.addEventListener('resize', onWindowResize, false);
 
@@ -355,26 +365,6 @@ function checkIntersection() {
     }
 }
 
-// function calculateEmissiveIntensity(angleRadians) {
-//     // Convertir l'angle en degrés pour simplifier la compréhension
-//     const angleDegrees = angleRadians * (180 / Math.PI);
-
-//     // L'intensité émissive basée sur l'angle
-//     /*let emissiveIntensity;
-
-//     if (angleDegrees < 90) {
-//         // Jour : diminuer l'intensité
-//         emissiveIntensity = 0.2 * (1 - angleDegrees / 90);
-//     } else {
-//         // Nuit : augmenter l'intensité, mais pas trop
-//         // Utiliser une fonction logarithmique ou exponentielle pour une augmentation douce
-//         emissiveIntensity = 0.2 + Math.log10((angleDegrees - 90) + 1) / 2;
-//     }*/
-
-//     // Assurer que l'intensité reste dans une plage raisonnable
-//     return 0.2; Math.min(Math.max(emissiveIntensity, 0), 1);
-// }
-
 function initFleet(starDestroyer) {
     const fleetSize = 3;
     for (let i = 0; i < fleetSize; i++) {
@@ -384,16 +374,6 @@ function initFleet(starDestroyer) {
         scene.add(clone);
     }
 }
-
-// function moveRazorCrest() {
-//     if (!isHyperSpace) {
-//         // Le Razor Crest se déplace continuellement vers la droite
-//         razorCrest.position.x -= 0.05; // Ajustez la vitesse ici
-
-//         // Vous pouvez également ajouter un mouvement en Z pour donner l'impression de changement de profondeur
-//         razorCrest.position.z += Math.sin(Date.now() * 0.002) * 0.05;
-//     }
-// }
 
 function animateFleet() {
     let heightOffset = 2;
@@ -443,69 +423,60 @@ function animateFleet() {
     }
 }
 
-// function simulateHyperSpace() {
-//     isHyperSpace = true;
+// Fonction pour mettre à jour l'émissivité de la Terre en fonction de la lumière
+function updateEmissivityBasedOnLight(earthMesh, lightPosition) {
+    const positionAttribute = earthMesh.geometry.attributes.position;
 
-//     // Faire passer tout le monde en hyperespace
-//     fleet.forEach((ship) => {
-//         ship.position.x += hyperSpeed + 100; // Aller vers la droite
-//     });
+    // Parcourir chaque vertex de la sphère
+    for (let i = 0; i < positionAttribute.count; i++) {
+        // Extraire les coordonnées x, y, z du vertex
+        const vertex = new THREE.Vector3(
+            positionAttribute.getX(i),
+            positionAttribute.getY(i),
+            positionAttribute.getZ(i)
+        );
 
-//     if (razorCrest) {
-//         razorCrest.position.x += hyperSpeed + 100; // Le Razor Crest passe aussi en hyperespace vers la droite
-//     }
+        // Transformer en position globale
+        vertex.applyMatrix4(earthMesh.matrixWorld);
 
-//     // Réinitialisation de l'état après l'hyperespace
-//     if (hyperSpeed >= maxHyperSpeed) {
-//         hyperSpeed = 0.05;
-//         isHyperSpace = false;
+        // Calculer la direction de la lumière pour ce vertex
+        const lightDirection = new THREE.Vector3().subVectors(lightPosition, vertex).normalize();
 
-//         // Repositionner les vaisseaux pour recommencer la poursuite
-//         fleet.forEach((ship) => {
-//             ship.position.x = -10; // Réapparaître à gauche
-//         });
-//         if (razorCrest) {
-//             razorCrest.position.set(-10, 0, -5); // Réinitialiser le Razor Crest à gauche
-//         }
-//     }
-// }
+        // Calculer la normale locale de la Terre à ce vertex
+        const normalDirection = vertex.clone().normalize(); // La normale de la Terre pointe depuis le centre
 
-// function createHyperSpaceEffect() {
-//     const hyperSpaceGeometry = new THREE.BufferGeometry();
-//     const particleCount = 1000;
-//     const positions = new Float32Array(particleCount * 3);
+        // Calculer le produit scalaire (cosinus de l'angle entre la lumière et la normale)
+        const dotProduct = lightDirection.dot(normalDirection);
 
-//     for (let i = 0; i < particleCount * 3; i += 3) {
-//         positions[i] = (Math.random() - 0.5) * 20; // Position X
-//         positions[i + 1] = (Math.random() - 0.5) * 20; // Position Y
-//         positions[i + 2] = (Math.random() - 0.5) * 50; // Position Z
-//     }
+        // Appliquer l'émissivité en fonction de la lumière reçue
+        if (dotProduct < 0) {
+            // Si le produit scalaire est négatif, cela signifie que le point est dans l'ombre (côté nuit)
+            // L'émissivité (lumières artificielles) doit être appliquée
+            earthMesh.material.emissiveIntensity = Math.abs(dotProduct) * 1.0; // Échelle de l'émissivité
+        } else {
+            // Si le produit scalaire est positif, cela signifie que le point est du côté éclairé
+            earthMesh.material.emissiveIntensity = 0.0; // Pas d'émissivité du côté éclairé
+        }
+    }
+}
 
-//     hyperSpaceGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-//     const hyperSpaceMaterial = new THREE.PointsMaterial({
-//         color: 0xffffff,
-//         size: 0.05,
-//         transparent: true,
-//         opacity: 0.0,
-//     });
-
-//     hyperSpaceParticles = new THREE.Points(hyperSpaceGeometry, hyperSpaceMaterial);
-//     scene.add(hyperSpaceParticles);
-// }
-
+// Appeler cette fonction dans la boucle d'animation pour mettre à jour l'émissivité
 function animate() {
     requestAnimationFrame(animate);
 
     if (!isPaused) {
         animateFleet();
-        animatePlasmaRays(); // Animer les rayons plasma
+        animatePlasmaRays();
 
+        // Rotation de la Terre et des nuages
         earthMesh.rotation.y += 0.001;
         cloudMesh.rotation.y += 0.0005;
 
         moonMesh.position.x = Math.cos(Date.now() * 0.001) * 2;
         moonMesh.position.z = Math.sin(Date.now() * 0.001) * 2;
+
+        // Mise à jour de l'émissivité basée sur la lumière pour chaque point de la Terre
+        updateEmissivityBasedOnLight(earthMesh, light.position);
     }
 
     renderer.render(scene, camera);
@@ -518,6 +489,5 @@ function onWindowResize() {
 }
 
 init();
-// createHyperSpaceEffect(); // Créez l'effet d'hyperespace après la scène
 // Tirer les rayons plasma à intervalles réguliers
 setInterval(firePlasmaRaysFromFleet, 1000); // Tirer toutes les 1 seconde
